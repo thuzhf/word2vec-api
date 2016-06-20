@@ -1,3 +1,6 @@
+#!/usr/bin/env python2
+# -*- coding: utf-8 -*-
+
 '''
 Simple web service wrapping a Word2Vec as implemented in Gensim
 Example call: curl http://127.0.0.1:5000/wor2vec/n_similarity/ws1=Sushi&ws1=Shop&ws2=Japanese&ws2=Restaurant
@@ -16,9 +19,10 @@ import cPickle
 import argparse
 import base64
 import sys
+import pprint
 
 parser = reqparse.RequestParser()
-
+pp = pprint.PrettyPrinter()
 
 def filter_words(words):
     if words is None:
@@ -60,7 +64,10 @@ class MostSimilar(Resource):
         print "positive: " + str(pos) + " negative: " + str(neg) + " topn: " + str(t)
         try:
             res = model.most_similar_cosmul(positive=pos,negative=neg,topn=t)
-            return res
+            res = {'result': [i[0] for i in res]}
+            #res = {'result': res}
+            #return res
+            return jsonify(res)
         except Exception, e:
             print e
             print res
@@ -109,6 +116,7 @@ if __name__ == '__main__':
     p.add_argument("--host", help="Host name (default: localhost)")
     p.add_argument("--port", help="Port (default: 5000)")
     p.add_argument("--path", help="Path (default: /word2vec)")
+    p.add_argument("--use-persisted-model", action='store_true', help='Use persisted model file')
     args = p.parse_args()
 
     model_path = args.model if args.model else "./model.bin.gz"
@@ -118,7 +126,10 @@ if __name__ == '__main__':
     port = int(args.port) if args.port else 5000
     if not args.model:
         print "Usage: word2vec-apy.py --model path/to/the/model [--host host --port 1234]"
-    model = w.load_word2vec_format(model_path, binary=binary)
+    if args.use_persisted_model:
+        model = w.load(model_path)
+    else:
+        model = w.load_word2vec_format(model_path, binary=binary)
     api.add_resource(N_Similarity, path+'/n_similarity')
     api.add_resource(Similarity, path+'/similarity')
     api.add_resource(MostSimilar, path+'/most_similar')
